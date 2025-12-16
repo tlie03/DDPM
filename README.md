@@ -1,4 +1,4 @@
-# MNIST-Diffusion
+# MNIST-DDPM
 
 The goal of this project is to build a diffusion model
 that is able to generate handwritten digits using the MNIST dataset for training.
