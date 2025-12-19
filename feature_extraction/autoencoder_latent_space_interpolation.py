@@ -8,8 +8,10 @@ from autoencoder_train import (LATENT_DIM, ENCODER_HIDDEN, DECODER_HIDDEN)
 
 matplotlib.use("TkAgg")
 
-DIGIT_VECTOR = torch.Tensor([[0, 0, 0, 0, 0, 0, 1, 0, 0, 0]])
-IMAGES_INBETWEEN = 1
+DIGIT_VECTOR = torch.Tensor([[0, 1, 0, 0, 0, 0, 0, 0, 0, 0]])
+IMAGES_INBETWEEN = 15
+INTERPOLATION_START = -2
+INTERPOLATION_END = 2
 
 
 if __name__ == "__main__":
@@ -23,13 +25,13 @@ if __name__ == "__main__":
     model.load_state_dict(state_dict)
     decoder = model.get_decoder()
 
-    # each latent dim has value between -1 and 1
+    # each feature_extraction dim has value between -1 and 1
     latent_dim = decoder.get_latent_dim()
 
     images = []
     for dim in range(latent_dim):
-        step_size = 2/(IMAGES_INBETWEEN+1)
-        interpolation = -1
+        step_size = (INTERPOLATION_END - INTERPOLATION_START)/(IMAGES_INBETWEEN+1)
+        interpolation = INTERPOLATION_START
         for _ in range(IMAGES_INBETWEEN + 2):
             latent = torch.zeros((1, latent_dim))
             latent[0][dim] = interpolation

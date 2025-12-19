@@ -3,15 +3,15 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 
-from betaVAE import VAutoencoder
-from betaVAE import NUM_DIGITS
+from autoencoder import Autoencoder
+from autoencoder import NUM_DIGITS
 
-ENCODER_HIDDEN = [512, 256, 128]
-DECODER_HIDDEN = [128, 256, 512]
-LATENT_DIM = 8
+ENCODER_HIDDEN = [256, 128]
+DECODER_HIDDEN = [128, 256]
+LATENT_DIM = 16
 
-EPOCHS = 2
-LEARNING_RATE = 0.0001
+EPOCHS = 25
+LEARNING_RATE = 0.001
 
 
 def one_hot_target(label):
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         shuffle=False
     )
 
-    autoencoder = VAutoencoder(
+    autoencoder = Autoencoder(
         enc_hidden=ENCODER_HIDDEN,
         dec_hidden=DECODER_HIDDEN,
         latent_dim=LATENT_DIM
@@ -65,23 +65,26 @@ if __name__ == "__main__":
 
     for epoch in range(EPOCHS):
         for i, batch in enumerate(train_loader):
-            x = batch[0]
-            y = batch[1]
+            x: torch.Tensor
+            y: torch.Tensor
+            x, y = batch
 
             reconstruction = autoencoder.forward(x, y)
-            loss = loss_function(x, reconstruction)
+            loss = loss_function(input=reconstruction, target=x)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        final_loss = 0
-        for i, batch in enumerate(test_loader):
-            x = batch[0]
-            y = batch[1]
+        with torch.no_grad():
+            final_loss = 0
+            for i, batch in enumerate(test_loader):
+                x: torch.Tensor
+                y: torch.Tensor
+                x, y = batch
 
-            reconstruction = autoencoder.forward(x, y)
-            loss = loss_function(x, reconstruction)
-            final_loss += loss
-        print(f"test loss of epoch {epoch+1} is {final_loss}")
+                reconstruction = autoencoder.forward(x, y)
+                loss = loss_function(input=reconstruction, target=x)
+                final_loss += loss
+            print(f"test loss of epoch {epoch+1} is {final_loss}")
 
-    torch.save(autoencoder.state_dict(), "betaVAE.pth")
+    torch.save(autoencoder.state_dict(), "autoencoder.pth")
