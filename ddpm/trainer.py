@@ -63,17 +63,12 @@ class Trainer:
                 total_loss = 0
                 for x, y in self.test_loader:
                     batch_size, channel, height, width = x.size()
-                    time_steps = torch.randint(1, len(self.beta_schedule) + 1, (batch_size,))
+                    time_steps = torch.randint(0, self.beta_schedule.shape[0], (batch_size,))
                     noise = torch.randn(batch_size, channel, height, width)
 
-                    alpha_bars = time_steps.clone().apply_(self.alpha_bar_t)
-
-                    x_factor = torch.sqrt(alpha_bars)
-                    x_factor = x_factor[:, None, None, None]
-
-                    noise_factor = 1 - alpha_bars
-                    noise_factor = torch.sqrt(noise_factor)
-                    noise_factor = noise_factor[:, None, None, None]
+                    alpha_bars = self.alpha_bars[time_steps]
+                    x_factor = torch.sqrt(alpha_bars)[:, None, None, None]
+                    noise_factor = torch.sqrt(1 - alpha_bars)[:, None, None, None]
 
                     x = x_factor * x + noise_factor * noise
 
