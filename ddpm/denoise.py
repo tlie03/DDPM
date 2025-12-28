@@ -43,7 +43,7 @@ class Denoise(torch.nn.Module):
     def encode_t(self, t: torch.Tensor) -> torch.Tensor:
         """
         calculates encoding for t.
-        :param t: tensor of shape (BATCH_SIZE) with values between 1 and T.
+        :param t: tensor of shape (BATCH_SIZE) with values between 0 and T-1
         :return: tensor whose shape depends on the encoding method used
         """
         if self.time_encoding == "scalar":
@@ -65,7 +65,7 @@ class Denoise(torch.nn.Module):
     def encode_t_positional(self, t: torch.Tensor) -> torch.Tensor:
         """
         Creates a positional encoding for t, with channel size self.t_dim
-        :param t: vector of shape (BATCH_SIZE) with values between 0 and T
+        :param t: vector of shape (BATCH_SIZE) with values between 0 and T-1
         :return: PE tensor of shape (BATCH_SIZE, self.t_dim)
         """
         idx = torch.arange(0, self.t_dim).unsqueeze(0).repeat(t.size(0), 1)
@@ -86,7 +86,7 @@ class Denoise(torch.nn.Module):
         y is used as a conditional vector.
         :param x: tensor of shape (BATCH_SIZE, height, width) and height * width = self.x_dim
         :param y: tensor of shape (BATCH_SIZE, self.y_dim), with any values
-        :param t: tensor of shape (BATCH_SIZE) with values between 1 and T
+        :param t: tensor of shape (BATCH_SIZE) with values between 0 and T-1
         :return:
         """
         pass
@@ -115,7 +115,7 @@ class DnnDenoise(Denoise):
           [y_dim, time_encoding_dim, hidden_dims[i]] -> hidden_dims[i+1]
         - hidden_activations is the activation function to be used in the hidden layers
         - If apply_batch_norm is true, batch normalization is applied at x and y at input and after each
-          linear layer before the activation functio
+          linear layer before the activation function
         For the docs of the other params see upper class.
         """
         super().__init__(
