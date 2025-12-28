@@ -7,7 +7,7 @@ class Denoise(torch.nn.Module):
 
     def __init__(
             self,
-            beta_schedule: List[float],
+            beta_schedule: torch.Tensor,
             x_dim: int,
             y_dim: int,
             time_encoding: str = "scalar",
@@ -30,7 +30,7 @@ class Denoise(torch.nn.Module):
             "scalar",
             "positional",
         ]
-        self.T = len(beta_schedule)
+        self.T = beta_schedule.shape[0]
         self.x_dim = x_dim
         self.y_dim = y_dim
         self.t_dim = 1 if time_encoding == "scalar" else time_encoding_channels
@@ -53,11 +53,10 @@ class Denoise(torch.nn.Module):
     def encode_t_scalar(self, t: torch.Tensor) -> torch.Tensor:
         """
         Encodes t into a scalar that is interpolated between 0 and 1.
-        :param t: vector of shape (BATCH_SIZE) with values between 1 and T
+        :param t: vector of shape (BATCH_SIZE) with values between 0 and T-1
         :return: scalar tensor of shape (BATCH_SIZE) with values between 0 and 1
         """
-        # t - 1 and self.T - 1 to make sure that range actually goes from 0 to 1, since t=0 does not exist
-        return (t - 1) / (self.T - 1)
+        return t / self.T
 
     def encode_t_positional(self, t: torch.Tensor) -> torch.Tensor:
         """
@@ -93,7 +92,7 @@ class DnnDenoise(Denoise):
 
     def __init__(
             self,
-            beta_schedule: List[float],
+            beta_schedule: torch.Tensor,
             x_dim: int,
             y_dim: int,
             time_encoding: str = "scalar",
