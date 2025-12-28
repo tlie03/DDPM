@@ -81,7 +81,7 @@ class Denoise(torch.nn.Module):
         """
         Predicts the total noise that was used to generate x at timestep t in the diffusion process.
         y is used as a conditional vector.
-        :param x: tensor of shape (BATCH_SIZE, self.x_dim), with values between 0 and 1
+        :param x: tensor of shape (BATCH_SIZE, height, width) and height * width = self.x_dim
         :param y: tensor of shape (BATCH_SIZE, self.y_dim), with any values
         :param t: tensor of shape (BATCH_SIZE) with values between 1 and T
         :return:
@@ -147,9 +147,14 @@ class DnnDenoise(Denoise):
         """
         For docs look in upper class
         """
+        x_shape = x.shape
+        x = x.flatten(start_dim=1)
         t = self.encode_t(t)
+
         for layer in self.layers:
             x = layer(x, y, t)
+
+        x = x.unflatten(dim=1, sizes=x_shape[1:])
         return x
 
 
