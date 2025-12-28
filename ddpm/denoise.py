@@ -30,11 +30,15 @@ class Denoise(torch.nn.Module):
             "scalar",
             "positional",
         ]
+        self.beta_schedule = beta_schedule
         self.T = beta_schedule.shape[0]
         self.x_dim = x_dim
         self.y_dim = y_dim
         self.t_dim = 1 if time_encoding == "scalar" else time_encoding_channels
         self.time_encoding = time_encoding
+
+    def get_beta_schedule(self) -> torch.Tensor:
+        return self.beta_schedule.clone()
 
     def encode_t(self, t: torch.Tensor) -> torch.Tensor:
         """
