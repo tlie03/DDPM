@@ -114,8 +114,6 @@ class DnnDenoise(Denoise):
           resulting in y_dim + time_encoding_dim + hidden_dim for the hidden dims.
           [y_dim, time_encoding_dim, hidden_dims[i]] -> hidden_dims[i+1]
         - hidden_activations is the activation function to be used in the hidden layers
-        - If apply_batch_norm is true, batch normalization is applied at x and y at input and after each
-          linear layer before the activation function
         For the docs of the other params see upper class.
         """
         super().__init__(
@@ -178,16 +176,15 @@ class DnnDenoiseLayer(torch.nn.Module):
         try:
             self.activation = getattr(nn, activation_function)()
         except AttributeError:
-            raise ValueError("Activation function '{activation_function}' not supported by torch")
+            raise ValueError(f"Activation function '{activation_function}' not supported by torch")
 
     def forward(self, x: torch.Tensor, y: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         """
-        concatenates t, y, x along dim=1 and feeds it into linear layer, then applies batch normalization and
-        activation function
+        concatenates t, y, x along dim=1 and feeds it into linear layer, then applies activation function
         :param x: tensor of shape (BATCH_SIZE, self.in_dim)
         :param y: tensor of shape (BATCH_SIZE, self.y_dim)
         :param t: tensor of shape (BATCH_SIZE, self.t_dim)
-        :return: activation(batch_norm(linear(concat([t, y, x], dim=1)))) tensor of shape (BATCH_SIZE, self.out_dim)
+        :return: activation(linear(concat([t, y, x], dim=1))) tensor of shape (BATCH_SIZE, self.out_dim)
         """
         input = torch.cat((t, y, x), dim=1)
         input = self.linear(input)
