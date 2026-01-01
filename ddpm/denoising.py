@@ -107,7 +107,7 @@ class DnnDenoise(Denoise):
         for layer in self.layers:
             x = layer(x, y, t)
 
-        x = x.unflatten(dim=1, sizes=self.x_shape[1:])
+        x = x.unflatten(dim=1, sizes=self.x_shape)
         return x
 
 
