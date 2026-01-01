@@ -16,8 +16,8 @@ class Denoise(torch.nn.Module, ABC):
     ):
         """
         abstract class of a denoiser that predicts the noise that was applied to an input.
-        :param x_shape: shape of the noise input
-        :param y_shape: shape of conditional y
+        :param x_shape: shape of the noise input, without batch dimension
+        :param y_shape: shape of conditional y, without batch dimension
         :param device: device on which the model will run
         """
         super().__init__(*args, **kwargs)
