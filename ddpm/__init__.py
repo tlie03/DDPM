@@ -1,14 +1,15 @@
-from beta_schedules import linear_beta_schedule, cosine_beta_schedule
-from denoise import Denoise, DnnDenoise
-from trainer import Trainer
-from sample import sample
+from .beta_schedule import BetaSchedule
+from .denoising import Denoise, DnnDenoise
+from .training import Trainer
+from .sampling import sample
+from .util import sinusoidal_encoding
 
 
 __all__ = [
-    "linear_beta_schedule",
-    "cosine_beta_schedule",
+    "BetaSchedule",
     "Denoise",
     "DnnDenoise",
     "Trainer",
-    "sample"
+    "sample",
+    "sinusoidal_encoding"
 ]
