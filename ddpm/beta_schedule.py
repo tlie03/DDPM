@@ -64,15 +64,16 @@ class BetaSchedule:
 
     @staticmethod
     def linear(length: int, start: float = 1e-4, end: float = 0.02) -> BetaSchedule:
-        betas = torch.linspace(start, end, length)
+        betas = torch.linspace(start, end, length, dtype=torch.float64).float()
         return BetaSchedule(betas=betas)
 
     @staticmethod
-    def cosine(length: int, s: float = 0.008) -> BetaSchedule:
-        x = torch.linspace(0, length + 1, length)
+    def cosine(length: int, s: float = 0.008, max_beta=0.999) -> BetaSchedule:
+        x = torch.linspace(0, length, length + 1, dtype=torch.float64)
         alphas_bar = torch.cos((((x / length) + s) / (1 + s)) * torch.pi * 0.5) ** 2
         alphas_bar = alphas_bar / alphas_bar[0]
         betas = 1 - (alphas_bar[1:] / alphas_bar[:-1])
+        betas = torch.clip(betas, 0, max_beta).float()
         return BetaSchedule(betas=betas)
 
 
