@@ -36,29 +36,25 @@ class Denoise(torch.nn.Module, ABC):
         pass
 
 
-class DnnDenoise(Denoise):
+class MLPDenoise(Denoise):
 
     def __init__(
             self,
             x_shape: torch.Size,
             y_shape: torch.Size,
-            time_encoding_channels: int = 32,
-            hidden_dims: List[int] = None,
-            hidden_activations: List[str] = None,
+            num_classes: int,
+            hidden_dim: int,
+            num_layers: int,
+            time_encoding_channels: int,
             *args, **kwargs
     ):
         """
-        Implements an MLP based denoiser. The conditional y and time embedding are concatenated
-        to the input layer and to each hidden layer. The time variable is encoded using
-        sinusoidal positional encoding and is then embedded through a small MLP of size
-        [time_encoding_channels] * 3 with no activation in the last layer.
+
         :param x_shape: shape of input x
-        :param y_shape: shape of conditional y
-        :param time_encoding_channels: number of channels used for the sinusoidal time encoding
-        and also the size of the time embedding vector
-        :param hidden_dims: List that defines the number and sizes of the hidden dimensions.
-        :param hidden_activations: List that defines the activation functions used in each hidden layer.
-        Can be any torch.nn activation function as a string ("ReLU", "SiLU", etc.)
+        :param y_shape: shape of conditional y must be (BATCH_SIZE)
+        :param hidden_dim: dimension of hidden state
+        :param num_layers: number of layers
+        :param time_encoding_channels: dimension of PE for time variable
         """
         super().__init__(
             x_shape,
@@ -66,87 +62,51 @@ class DnnDenoise(Denoise):
             *args,
             **kwargs
         )
+        self.hidden_dim = hidden_dim
+        self.time_encoding_channel = time_encoding_channels
 
-        # check and prepare hyperparams
-        if hidden_dims is None:
-            hidden_dims = []
-        if hidden_activations is None:
-            hidden_activations = []
-        assert len(hidden_dims) == len(hidden_activations)
-        self.dims = [x_shape.numel()] + hidden_dims + [x_shape.numel()]
-        self.activations = hidden_activations + ["Identity"]
-
-        self.time_encoding_channels = time_encoding_channels
-        # maps positional time encoding to an embedding vector of the same length
         self.time_embedding = torch.nn.Sequential(
-            torch.nn.Linear(time_encoding_channels, time_encoding_channels),
+            torch.nn.Linear(time_encoding_channels, hidden_dim),
             torch.nn.SiLU(),
-            torch.nn.Linear(time_encoding_channels, time_encoding_channels)
+            torch.nn.Linear(hidden_dim, hidden_dim),
         )
 
-        self.layers = nn.ModuleList()
-        for in_dim, out_dim, activation in zip(self.dims, self.dims[1::], self.activations):
-            layer = DnnDenoiseLayer(
-                in_dim=in_dim,
-                out_dim=out_dim,
-                y_dim=y_shape.numel(),
-                t_dim=time_encoding_channels,
-                activation_function=activation,
-            )
-            self.layers.append(layer)
+        self.label_embedding = torch.nn.Embedding(num_classes, hidden_dim)
+
+        self.input_embedding = torch.nn.Sequential(
+            torch.nn.Linear(x_shape.numel(), hidden_dim),
+            torch.nn.SiLU(),
+            torch.nn.Linear(hidden_dim, hidden_dim),
+        )
+
+        self.layers = [
+            torch.nn.Sequential(
+                torch.nn.Linear(hidden_dim, hidden_dim),
+                torch.nn.SiLU(),
+            ) for _ in range(num_layers)
+        ]
+
+        self.output_layer = torch.nn.Sequential(
+            torch.nn.Linear(hidden_dim, x_shape.numel()),
+        )
 
     def forward(self, x: torch.Tensor, y: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         """
-        For docs look in upper class
+        first embeds all variables, then sums them to get a single hidden state. The hidden
+        state is then passed through the hidden layers using residual connections and the last
+        hidden state is then linearly projected to the output vector.
         """
+        t_encoding = sinusoidal_encoding(t=t, dim=self.time_encoding_channel)
+        t_embedding = self.time_embedding(t_encoding)
+
+        y_embedding = self.label_embedding(y)
+
         x = x.flatten(start_dim=1)
-        y = y.flatten(start_dim=1)
-        t = sinusoidal_encoding(t=t, dim=self.time_encoding_channels)
-        t = self.time_embedding(t)
+        x_embedding = self.input_embedding(x)
 
+        h = x_embedding + y_embedding + t_embedding
         for layer in self.layers:
-            x = layer(x, y, t)
+            h = h + layer(h)
 
-        x = x.unflatten(dim=1, sizes=self.x_shape)
-        return x
-
-
-class DnnDenoiseLayer(torch.nn.Module):
-
-    def __init__(
-            self,
-            in_dim: int,
-            out_dim: int,
-            y_dim: int,
-            t_dim: int,
-            activation_function: str,
-            *args, **kwargs
-    ):
-        """
-        A layer in the denoising DNN. Maps a vector of size in_dim + y_dim + t_dim to a vector of size
-        out_dim using a linear transformation and an activation function.
-        :param in_dim: length of output vector of previous layer
-        :param out_dim: length of output vector of this layer
-        :param y_dim: length of conditional vector
-        :param t_dim: length of time embedding vector
-        :param activation_function: can be any torch.nn activation function as a string ("ReLU", "SiLU", etc.)
-        """
-        super().__init__(*args, **kwargs)
-
-        self.linear = nn.Linear(t_dim + y_dim + in_dim, out_dim)
-        try:
-            self.activation = getattr(nn, activation_function)()
-        except AttributeError:
-            raise ValueError(f"Activation function '{activation_function}' not supported by torch")
-
-    def forward(self, x: torch.Tensor, y: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        """
-        concatenates t, y, x along dim=1 and feeds it into linear layer, then applies activation function
-        :param x: tensor of shape (BATCH_SIZE, self.in_dim)
-        :param y: tensor of shape (BATCH_SIZE, self.y_dim)
-        :param t: tensor of shape (BATCH_SIZE, self.t_dim)
-        :return: activation(linear(concat([t, y, x], dim=1))) tensor of shape (BATCH_SIZE, self.out_dim)
-        """
-        input = torch.cat((t, y, x), dim=1)
-        input = self.linear(input)
-        return self.activation(input)
+        out = self.output_layer(h)
+        return out.unflatten(dim=1, sizes=self.x_shape)
