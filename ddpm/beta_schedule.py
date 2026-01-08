@@ -36,7 +36,7 @@ class BetaSchedule:
         betas = torch.clip(betas, 0, max_beta).float()
         return BetaSchedule(betas=betas, device=device)
 
-    def __init__(self, betas: torch.Tensor, device: torch.device):
+    def __init__(self, betas: torch.Tensor, device: torch.device = DEFAULT_DEVICE):
         betas = betas.to(device)
         self._T = betas.shape[0]
         self._betas = betas
@@ -52,6 +52,12 @@ class BetaSchedule:
         self._sigmas = torch.sqrt(
             ((1 - alphas_bar_shifted) / (1 - self._alphas_bar + self.EPS)) * self._betas
         )
+
+    def __len__(self) -> int:
+        return self._T
+
+    def to(self, device: torch.device) -> BetaSchedule:
+        return BetaSchedule(betas=self._betas, device=device)
 
     def beta(self, t: int | torch.Tensor) -> torch.Tensor:
         return self._betas[t]
@@ -74,9 +80,3 @@ class BetaSchedule:
     def sigma(self, t: int | torch.Tensor) -> torch.Tensor:
         """sigma(0)=0"""
         return self._sigmas[t]
-
-    def __len__(self) -> int:
-        return self._T
-
-    def to(self, device: torch.device) -> BetaSchedule:
-        return BetaSchedule(betas=self._betas, device=device)
