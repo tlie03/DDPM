@@ -17,11 +17,27 @@ class BetaSchedule:
     - sigmas
     All of these tensors have shape (T).
     Note that indices go from 0 to T-1 instead of 1 to T,
-    as in the notation of the landmark DDPM paper https://arxiv.org/abs/2006.11239.
+    as in the notation of the DDPM paper https://arxiv.org/abs/2006.11239.
     """
     EPS = 1e-8
+    DEFAULT_DEVICE = torch.device("cpu")
 
-    def __init__(self, betas: torch.Tensor):
+    @staticmethod
+    def linear(length: int, device=DEFAULT_DEVICE, start: float = 1e-4, end: float = 0.02) -> BetaSchedule:
+        betas = torch.linspace(start, end, length, dtype=torch.float64).float()
+        return BetaSchedule(betas=betas, device=device)
+
+    @staticmethod
+    def cosine(length: int, device=DEFAULT_DEVICE, s: float = 0.008, max_beta=0.999) -> BetaSchedule:
+        x = torch.linspace(0, length, length + 1, dtype=torch.float64)
+        alphas_bar = torch.cos((((x / length) + s) / (1 + s)) * torch.pi * 0.5) ** 2
+        alphas_bar = alphas_bar / alphas_bar[0]
+        betas = 1 - (alphas_bar[1:] / alphas_bar[:-1])
+        betas = torch.clip(betas, 0, max_beta).float()
+        return BetaSchedule(betas=betas, device=device)
+
+    def __init__(self, betas: torch.Tensor, device: torch.device):
+        betas = betas.to(device)
         self._T = betas.shape[0]
         self._betas = betas
         self._alphas = 1 - betas
@@ -31,14 +47,11 @@ class BetaSchedule:
         self._sqrt_one_minus_alphas_bar = torch.sqrt(1 - self._alphas_bar)
 
         # set value at new index 0 to 1 so that self.sigmas[0] = 0
-        alphas_bar_shifted = torch.cat([torch.ones(1), self._alphas_bar[:-1]], dim=0)
+        alphas_bar_shifted = torch.cat([torch.ones(1, device=device), self._alphas_bar[:-1]], dim=0)
         # add EPS in denominator for numerical stability
         self._sigmas = torch.sqrt(
             ((1 - alphas_bar_shifted) / (1 - self._alphas_bar + self.EPS)) * self._betas
         )
-
-    def __len__(self) -> int:
-        return self._T
 
     def beta(self, t: int | torch.Tensor) -> torch.Tensor:
         return self._betas[t]
@@ -62,19 +75,8 @@ class BetaSchedule:
         """sigma(0)=0"""
         return self._sigmas[t]
 
-    @staticmethod
-    def linear(length: int, start: float = 1e-4, end: float = 0.02) -> BetaSchedule:
-        betas = torch.linspace(start, end, length, dtype=torch.float64).float()
-        return BetaSchedule(betas=betas)
+    def __len__(self) -> int:
+        return self._T
 
-    @staticmethod
-    def cosine(length: int, s: float = 0.008, max_beta=0.999) -> BetaSchedule:
-        x = torch.linspace(0, length, length + 1, dtype=torch.float64)
-        alphas_bar = torch.cos((((x / length) + s) / (1 + s)) * torch.pi * 0.5) ** 2
-        alphas_bar = alphas_bar / alphas_bar[0]
-        betas = 1 - (alphas_bar[1:] / alphas_bar[:-1])
-        betas = torch.clip(betas, 0, max_beta).float()
-        return BetaSchedule(betas=betas)
-
-
-
+    def to(self, device: torch.device) -> BetaSchedule:
+        return BetaSchedule(betas=self._betas, device=device)
