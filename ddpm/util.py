@@ -11,6 +11,6 @@ def sinusoidal_encoding(t: torch.Tensor, dim: int) -> torch.Tensor:
     """
     half = dim // 2
     nominator = t.unsqueeze(-1).repeat(*([1] * len(t.shape)), half)
-    denominator = torch.pow(10000, (2 * torch.arange(half) / dim))
+    denominator = torch.pow(10000, (2 * torch.arange(half, device=t.device) / dim))
     raw_values = nominator / denominator
     return torch.cat([torch.sin(raw_values), torch.cos(raw_values)], dim=-1)
