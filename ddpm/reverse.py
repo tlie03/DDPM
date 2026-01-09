@@ -16,7 +16,6 @@ def reverse_step(x_t, y, t, model: Denoise, beta_schedule: BetaSchedule) -> torc
     y: shape (BATCH_SIZE, model.y_shape)
     t: shape (BATCH_SIZE), can be different values within the range of [0, T-1]
     """
-    noise = beta_schedule.sigma(t) * torch.randn_like(x_t, device=x_t.device)
     drift = model(x=x_t, y=y, t=t)
 
     # broadcast t to match the shape of x_prev, so that beta schedule returns correct shape
@@ -25,6 +24,7 @@ def reverse_step(x_t, y, t, model: Denoise, beta_schedule: BetaSchedule) -> torc
     new_shape = (batch_size,) + (1,) * x_ndim
     t = t.view(new_shape)
 
+    noise = beta_schedule.sigma(t) * torch.randn_like(x_t, device=x_t.device)
     drift = (
                     (1 - beta_schedule.alpha(t)) / (beta_schedule.sqrt_one_minus_alpha_bar(t) + EPS)
             ) * drift
