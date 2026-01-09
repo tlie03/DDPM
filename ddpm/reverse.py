@@ -30,4 +30,4 @@ def reverse_step(x_t, y, t, model: Denoise, beta_schedule: BetaSchedule) -> torc
             ) * drift
 
     scaling = 1 / (beta_schedule.sqrt_alpha(t) + EPS)
-    return scaling * (x_t - drift) * noise
+    return scaling * (x_t - drift) + noise
