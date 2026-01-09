@@ -1,0 +1,27 @@
+import torch
+
+from ddpm import BetaSchedule
+
+
+DATA_SEED = 42
+NUM_SAMPLES = 2000
+START_ANGLE = 0
+N_TURNS = 1.5
+NOISE_LEVEL = 0.00
+MAXIMUM_RADIUS = 1.5
+
+X_SHAPE = torch.Size((2,))
+Y_SHAPE = torch.Size()
+
+T = 250
+BETA_SCHEDULE = BetaSchedule.cosine(T)
+
+NUM_LAYERS = 6
+HIDDEN_DIM = 300
+TIME_ENCODING_CHANNELS = 48
+NUM_CLASSES = 1
+
+BATCH_SIZE = 128
+EPOCHS = 2500
+LEARNING_RATE = 0.001
+MODEL_PATH = "spiral_model.pth"
