@@ -3,23 +3,22 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as anim
 import matplotlib
 
-from ddpm import BetaSchedule, forward_step
-from data.spiral_data import create_spiral_dataset_torch
+from src.ddpm import forward_step
+from src.util import create_spiral_dataset_torch
 
+from scripts.spiral_models.params_data import (
+    DATA_SEED,
+    NUM_SAMPLES,
+    START_ANGLE,
+    N_TURNS,
+    NOISE_LEVEL,
+    MAXIMUM_RADIUS,
+    T,
+    BETA_SCHEDULE
+)
 
 matplotlib.use("TkAgg")
-
-
-DATA_SEED = 42
-NUM_SAMPLES = 2000
-START_ANGLE = 0
-N_TURNS = 1.5
-NOISE_LEVEL = 0.00
-MAXIMUM_RADIUS = 1.5
-
-T = 1000
-BETA_SCHEDULE = BetaSchedule.cosine(T)
-
+ALPHA = 0.1
 
 current_x = None
 
@@ -43,7 +42,7 @@ def init_plot(x_data):
 
     # Create the mutable scatter plot artist
     # x_0 is an (N, 2) tensor/array.
-    scatter = ax.scatter(current_x[:, 0], current_x[:, 1], s=5, alpha=0.5, color='blue')
+    scatter = ax.scatter(current_x[:, 0], current_x[:, 1], s=5, alpha=ALPHA, color='blue')
 
     # Create the mutable text artist for the timestep display
     time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, color='black')
@@ -96,8 +95,6 @@ if __name__ == "__main__":
         fargs=(scatter_artist, time_text_artist, BETA_SCHEDULE),
         interval=10,
         blit=True,
-        repeat=True,
+        repeat=False,
     )
     plt.show()
-
-

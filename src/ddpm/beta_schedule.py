@@ -6,8 +6,8 @@ import torch
 class BetaSchedule:
     """
     Class used to handle the create and handle the beta schedule used by a ddpm.
-    On initialization, it prepares the following constant tensors that are all needed either during
-    training or sampling:
+    On initialization, it prepares the following constant tensors that are all needed during
+    training and sampling:
     - betas
     - alphas
     - alphas_bar
@@ -78,5 +78,10 @@ class BetaSchedule:
         return self._sqrt_one_minus_alphas_bar[t]
 
     def sigma(self, t: int | torch.Tensor) -> torch.Tensor:
-        """sigma(0)=0"""
+        """self._sigmas[0]=0"""
         return self._sigmas[t]
+
+    def expected_alpha_bar(self):
+        t = torch.arange(len(self))
+        alpha_bars = self.alpha_bar(t=t)
+        return sum(alpha_bars) / len(self)

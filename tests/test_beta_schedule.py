@@ -1,7 +1,7 @@
 from unittest import TestCase
 import torch
 
-from ddpm import BetaSchedule
+from src.ddpm import BetaSchedule
 
 
 class TestBetaSchedule(TestCase):

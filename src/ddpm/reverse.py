@@ -1,13 +1,32 @@
 import torch
 
 from .beta_schedule import BetaSchedule
-from .denoising import Denoise
+from src.ddpm.noise_estimation import NoiseEstimate
 
 
 EPS = 1e-8
 
 
-def reverse_step(x_t, y, t, model: Denoise, beta_schedule: BetaSchedule) -> torch.Tensor:
+def reverse(x_T, y, model: NoiseEstimate, beta_schedule: BetaSchedule):
+    """
+    Computes the entire reverse process.
+    x_T, y, model, beta_schedule must all be on the same device !!!
+
+    x_T: shape (BATCH_SIZE, model.x_shape). Is actually x_T-1 when using the notation that aligns
+    with the notation used throughout the other modules.
+    y: shape (BATCH_SIZE, model.y_shape)
+    model: Denoise model
+    beta_schedule: BetaSchedule that is used for denoising. Should ideally be the same schedule that was used
+    to train the model
+    """
+    T = len(beta_schedule)
+    batch_size = x_T.size(0)
+    for t in range(T - 1, -1, -1):
+        x_T = reverse_step(x_T, y, torch.full((batch_size,), fill_value=t), model, beta_schedule)
+    return x_T
+
+
+def reverse_step(x_t, y, t, model: NoiseEstimate, beta_schedule: BetaSchedule) -> torch.Tensor:
     """
     Computes x_t-1 based on x_t, y, and t using a denoiser and the corresponding beta_schedule.
     x_t, y, t, model and beta_schedule must be on the same device!!!

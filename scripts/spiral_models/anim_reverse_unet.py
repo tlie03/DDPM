@@ -3,45 +3,43 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as anim
 import matplotlib
 
+from src.ddpm.beta_schedule import BetaSchedule
+
 matplotlib.use("TkAgg")
 
-from ddpm import MLPDenoise, BetaSchedule, reverse_step
+from src.ddpm import Unet, reverse_step
 
-from visualization.spiral_params import (
-    DATA_SEED,
-    NUM_SAMPLES,
-    START_ANGLE,
-    N_TURNS,
-    NOISE_LEVEL,
+from scripts.spiral_models.params_data import (
     MAXIMUM_RADIUS,
-    X_SHAPE,
-    Y_SHAPE,
+)
+from scripts.spiral_models.params_unet import (
     T,
     BETA_SCHEDULE,
-    NUM_LAYERS,
-    HIDDEN_DIM,
     TIME_ENCODING_CHANNELS,
-    NUM_CLASSES,
-    BATCH_SIZE,
-    EPOCHS,
-    LEARNING_RATE,
     MODEL_PATH,
+    X_SHAPE,
+    Y_SHAPE,
+    NUM_BLOCKS,
+    NUM_CHANNELS_INIT,
+    ACTIVATION_FUNCTION,
 )
+
+ALPHA = 0.1
 
 
 def init_reverse_plot(num_samples):
     x_T = torch.randn(num_samples, 2)
-    y = torch.zeros(num_samples).int()
+    y = torch.zeros(num_samples)
 
     fig, ax = plt.subplots(figsize=(6, 6))
 
-    limit = 3.0
+    limit = MAXIMUM_RADIUS * 1.5
     ax.set_xlim(-limit, limit)
     ax.set_ylim(-limit, limit)
     ax.set_aspect('equal', adjustable='box')
     ax.set_title("DDPM Reverse Process: Noise to Data")
 
-    scatter = ax.scatter(x_T[:, 0], x_T[:, 1], s=5, alpha=0.5, color='blue')
+    scatter = ax.scatter(x_T[:, 0], x_T[:, 1], s=5, alpha=ALPHA, color='blue')
     time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, color='black')
 
     return x_T, y, fig, ax, scatter, time_text
@@ -49,7 +47,8 @@ def init_reverse_plot(num_samples):
 
 def update_reverse_frame(t_index, x_t_tensor, y_tensor, scatter, time_text, beta_schedule, model):
     t_index = torch.full((x_t_tensor.shape[0],), t_index).int()
-    x_t_minus_1 = reverse_step(x_t_tensor, y_tensor, t_index, model, beta_schedule)
+    x_t_minus_1 = reverse_step(x_t_tensor[:, None, None, :], y_tensor[:, None], t_index, model, beta_schedule)
+    x_t_minus_1 = x_t_minus_1.squeeze()
 
     x_t_tensor.copy_(x_t_minus_1)
 
@@ -60,19 +59,19 @@ def update_reverse_frame(t_index, x_t_tensor, y_tensor, scatter, time_text, beta
 
 
 if __name__ == "__main__":
-    x_T_state, y, fig, ax, scatter_artist, time_text_artist = init_reverse_plot(NUM_SAMPLES)
+    x_T_state, y, fig, ax, scatter_artist, time_text_artist = init_reverse_plot(2000)
 
     print(f"Creating reverse animation for T={T} steps...")
 
     t_indices_to_denoise = range(T - 1, -1, -1)
 
-    model = MLPDenoise(
+    model = Unet(
         x_shape=X_SHAPE,
         y_shape=Y_SHAPE,
-        num_layers=NUM_LAYERS,
-        hidden_dim=HIDDEN_DIM,
         time_encoding_channels=TIME_ENCODING_CHANNELS,
-        num_classes=NUM_CLASSES
+        num_blocks=NUM_BLOCKS,
+        num_channels_init=NUM_CHANNELS_INIT,
+        activation_function=ACTIVATION_FUNCTION
     )
 
     state_dict = torch.load(MODEL_PATH)
