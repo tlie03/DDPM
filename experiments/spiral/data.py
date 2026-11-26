@@ -2,6 +2,7 @@ from typing import Tuple
 from torch import Tensor
 import torch
 import numpy as np
+from omegaconf import DictConfig
 
 
 def create_spiral_dataset_torch(
@@ -15,22 +16,16 @@ def create_spiral_dataset_torch(
     """
     Generates a 2D dataset forming two interwoven spirals around the origin (0, 0)
     and returns them as PyTorch Tensors.
-
-    Args:
-        n_samples (int): Total number of points to generate (must be even).
-        start_angle (float): Initial angle for the spiral in radians.
-        n_turns (float): Number of full rotations for the spiral.
-        noise_level (float): The amount of random noise to add to the coordinates.
-        random_seed (int): Seed for the random number generator for reproducibility.
-        max_radius: (float): Maximum radius of the spirals
-    Returns:
-        tuple: (X, y)
-               X (torch.Tensor): The feature tensor of shape (n_samples, 2), dtype=torch.float32.
-               y (torch.Tensor): The label tensor of shape (n_samples,), dtype=torch.long.
+    :param n_samples: Total number of points to generate (must be even).
+    :param start_angle: Initial angle for the spiral in radians.
+    :param n_turns: Number of full rotations for the spiral.
+    :param noise_level: The amount of random noise to add to the coordinates.
+    :param random_seed: Seed for the random number generator for reproducibility.
+    :param max_radius: Maximum radius of the spirals
+    :return tuple: (X, Y)
+        X (torch.Tensor): The feature tensor of shape (n_samples, 2), dtype=torch.float32.
+        Y (torch.Tensor): The label tensor of shape (n_samples,), dtype=torch.long.
     """
-    if n_samples % 2 != 0:
-        raise ValueError("n_samples must be an even number for two balanced spirals.")
-
     np.random.seed(random_seed)
     n_points_per_spiral = n_samples // 2
 
@@ -46,14 +41,28 @@ def create_spiral_dataset_torch(
     x1_np = np.stack([r1 * np.cos(t1), r1 * np.sin(t1)], axis=1)
     y1_np = np.ones(n_points_per_spiral, dtype=int)
 
-    # 3. Combine and add noise (still in NumPy)
     x_np = np.concatenate([x0_np, x1_np], axis=0)
     y_np = np.concatenate([y0_np, y1_np], axis=0)
     x_np += np.random.normal(scale=noise_level, size=x_np.shape)
 
-    # 4. Convert NumPy arrays to PyTorch Tensors
-    # X is features (float32) and y is labels (long/int64)
     x_torch = torch.from_numpy(x_np).float()
     y_torch = torch.from_numpy(y_np).long()
 
     return x_torch, y_torch
+
+
+def points(n_samples: int, cfg: DictConfig) -> Tensor:
+    """
+    :param n_samples: number of points
+    :param cfg: data section of the experiment config
+    :return: spiral points of shape (n_samples, 2)
+    """
+    x, _ = create_spiral_dataset_torch(
+        n_samples=n_samples,
+        start_angle=cfg.start_angle,
+        n_turns=cfg.n_turns,
+        noise_level=cfg.noise_level,
+        random_seed=cfg.random_seed,
+        max_radius=cfg.max_radius,
+    )
+    return x

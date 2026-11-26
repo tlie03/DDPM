@@ -4,8 +4,8 @@ from typing import List
 import torch
 import torch.nn as nn
 
-from .noise_estimate import NoiseEstimate
-from src.util import sinusoidal_encoding
+from .base import NoiseEstimate
+from .utils import sinusoidal_encoding
 
 
 class Unet(NoiseEstimate):
@@ -16,8 +16,8 @@ class Unet(NoiseEstimate):
             y_shape: torch.Size,
             num_blocks: int,
             num_channels_init: int,
-            activation_function: str,
             time_encoding_channels: int,
+            activation_function: str = "ReLU",
             *args,
             **kwargs
     ):
@@ -26,8 +26,9 @@ class Unet(NoiseEstimate):
         :param y_shape: shape of y
         :param num_blocks: number of unet blocks used, must be at least 1
         :param num_channels_init: number of inner channels of the first block. Will double with every block
+        :param time_encoding_channels: dimension of the sinusoidal time encoding
         :param activation_function: activation function used, can be any string that
-        is a valid activation function class in torch.nn
+        is a valid activation function class in torch.nn. Defaults to ReLU
         """
         super().__init__(x_shape, y_shape, *args, **kwargs)
         assert num_blocks >= 1
@@ -81,36 +82,36 @@ class UNetBlock(torch.nn.Module):
     def __init__(
             self,
             channels_in: int,
-            activation_function: str,
             sub_block: UNetBlock | None,
             t_dim: int,
             y_dim: int,
+            activation_function: str = "ReLU",
             *args,
             **kwargs
     ):
         """
         Creates an Unet Block.
         :param channels_in: number of channels that are passed to this block
-        :param activation_function: activation function used, can be any string that
-        is a valid activation function class in torch.nn
         :param sub_block: the sub U-net block. None if the block is the base layer
         :param t_dim: dimension of time encoding
         :param y_dim: dimension of conditional encoding
+        :param activation_function: activation function used, can be any string that
+        is a valid activation function class in torch.nn. Defaults to ReLU
         """
         super().__init__(*args, **kwargs)
 
         self.embed_t = nn.Sequential(
             nn.Linear(t_dim, t_dim),
-            nn.SELU(),
+            nn.ReLU(),
             nn.Linear(t_dim, t_dim),
-            nn.SELU(),
+            nn.ReLU(),
             nn.Linear(t_dim, channels_in)
         )
         self.embed_y = nn.Sequential(
             nn.Linear(y_dim, y_dim),
-            nn.SELU(),
+            nn.ReLU(),
             nn.Linear(y_dim, y_dim),
-            nn.SELU(),
+            nn.ReLU(),
             nn.Linear(y_dim, channels_in)
         )
 
@@ -171,13 +172,13 @@ class ChainedConv2d(torch.nn.Module):
     PADDING = 1
     STRIDE = 1
 
-    def __init__(self, channels: List[int], activation_function: str, *args, **kwargs):
+    def __init__(self, channels: List[int], activation_function: str = "ReLU", *args, **kwargs):
         """
         :param channels: dimensions channels, length of list-1 is
         the number of convolutions that will be applied. First element must be input dimension and last
         element determines the output dimension of this module
         :param activation_function: the activation function used, can be any string that
-        corresponds to a pytorch activation function class
+        corresponds to a pytorch activation function class. Defaults to ReLU
         """
         super().__init__(*args, **kwargs)
         assert len(channels) >= 2
@@ -188,8 +189,8 @@ class ChainedConv2d(torch.nn.Module):
                         in_channels=in_c,
                         out_channels=out_c,
                         kernel_size=self.KERNEL_SIZE,
-                        stride=self.PADDING,
-                        padding=self.STRIDE
+                        stride=self.STRIDE,
+                        padding=self.PADDING
                     ),
                     getattr(torch.nn, activation_function)()
                 ) for in_c, out_c in zip(channels, channels[1:])

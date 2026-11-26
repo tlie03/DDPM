@@ -1,7 +1,7 @@
 import torch
 
-from .noise_estimate import NoiseEstimate
-from src.util import sinusoidal_encoding
+from .base import NoiseEstimate
+from .utils import sinusoidal_encoding
 
 
 class MLP(NoiseEstimate):
@@ -35,7 +35,7 @@ class MLP(NoiseEstimate):
 
         self.time_embedding = torch.nn.Sequential(
             torch.nn.Linear(time_encoding_channels, hidden_dim),
-            torch.nn.SiLU(),
+            torch.nn.ReLU(),
             torch.nn.Linear(hidden_dim, hidden_dim),
         )
 
@@ -43,14 +43,17 @@ class MLP(NoiseEstimate):
 
         self.input_embedding = torch.nn.Sequential(
             torch.nn.Linear(x_shape.numel(), hidden_dim),
-            torch.nn.SiLU(),
+            torch.nn.ReLU(),
             torch.nn.Linear(hidden_dim, hidden_dim),
         )
 
         self.layers = torch.nn.ModuleList([
             torch.nn.Sequential(
+                torch.nn.LayerNorm(hidden_dim),
                 torch.nn.Linear(hidden_dim, hidden_dim),
-                torch.nn.SiLU(),
+                torch.nn.ReLU(),
+                # final linear layer lets the residual update be negative as well
+                torch.nn.Linear(hidden_dim, hidden_dim),
             ) for _ in range(num_layers)
         ])
 
@@ -63,6 +66,7 @@ class MLP(NoiseEstimate):
         first embeds all variables, then sums them to get a single hidden state. The hidden
         state is then passed through the hidden layers using residual connections and the last
         hidden state is then linearly projected to the output vector.
+        returns: Tensor of shape (batch, *x.shape)
         """
         t_encoding = sinusoidal_encoding(t=t, dim=self.time_encoding_channel)
         t_embedding = self.time_embedding(t_encoding)

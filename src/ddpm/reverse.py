@@ -1,7 +1,7 @@
 import torch
 
 from .beta_schedule import BetaSchedule
-from src.ddpm.noise_estimation import NoiseEstimate
+from src.nn import NoiseEstimate
 
 
 EPS = 1e-8
@@ -22,7 +22,7 @@ def reverse(x_T, y, model: NoiseEstimate, beta_schedule: BetaSchedule):
     T = len(beta_schedule)
     batch_size = x_T.size(0)
     for t in range(T - 1, -1, -1):
-        x_T = reverse_step(x_T, y, torch.full((batch_size,), fill_value=t), model, beta_schedule)
+        x_T = reverse_step(x_T, y, torch.full((batch_size,), fill_value=t, device=x_T.device), model, beta_schedule)
     return x_T
 
 

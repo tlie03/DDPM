@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Trained models: only the experiment results (plots, animations) are versioned, not the weights
+*.pth
+
+# Hydra stores the config and log of every run here
+experiments/*/output/hydra/
