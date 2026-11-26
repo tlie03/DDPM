@@ -1,0 +1,54 @@
+# Spiral experiment: an unconditional MLP noise estimate learns two interwoven 2D spirals.
+# Paths are relative to the project root, run the scripts from there:
+#   python -m experiments.spiral.train [overrides, e.g. train.epochs=100]
+#   python -m experiments.spiral.animate [overrides, e.g. animate.num_samples=500]
+#   python -m experiments.spiral.sample [overrides, e.g. sample.num_samples=1000]
+
+name: spiral
+seed: 0
+device: auto  # auto, cpu or cuda
+output_dir: experiments/spiral/output
+model_path: ${output_dir}/mlp.pth
+
+data:
+  num_samples: 100000
+  start_angle: 0
+  n_turns: 1.5
+  noise_level: 0.0
+  random_seed: 42
+  max_radius: 5
+
+diffusion:
+  T: 100
+  schedule: cosine  # cosine or linear
+  # cosine only: clips the largest betas. With the default 0.999 the last reverse step divides by
+  # sqrt(1 - 0.999) and amplifies errors of the noise estimate ~30x, which throws samples far off the data
+  max_beta: 0.5
+
+model:
+  num_layers: 9
+  hidden_dim: 64
+  time_encoding_channels: 16
+
+train:
+  epochs: 300  # 49 batches per epoch -> ~14,700 optimizer steps
+  batch_size: 2048
+  learning_rate: 0.002
+
+sample:
+  num_samples: 4000
+  plot_path: ${output_dir}/samples.png
+
+animate:
+  num_samples: 1000  # fixed data points that are noised and denoised again
+  fps: 12  # one frame per timestep, so this sets the playback speed
+  dpi: 100  # resolution of the gif: 5 inch * dpi = 500 x 500 pixels
+  colors: 16  # colors per frame, fewer colors give a smaller gif
+  forward_gif_path: ${output_dir}/forward.gif
+  reverse_gif_path: ${output_dir}/reverse.gif
+
+hydra:
+  run:
+    dir: ${output_dir}/hydra/${now:%Y-%m-%d_%H-%M-%S}
+  job:
+    chdir: false
